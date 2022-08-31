@@ -1,4 +1,3 @@
-#![feature(slice_take)]
 mod modes;
 
 use std::{ env::args, process::exit };
