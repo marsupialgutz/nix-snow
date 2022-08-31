@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+name = "nospm"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+json = "0.12.4"
+temp-file = "0.1.7"
