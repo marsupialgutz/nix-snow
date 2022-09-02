@@ -114,12 +114,12 @@ fn run(args: Vec<String>) {
 
     let beginning = home_file
         .iter()
-        .position(|x| x.contains("# NIX-ADD BEGIN"))
+        .position(|x| x.contains("# SNOW BEGIN"))
         .unwrap();
 
     let end = home_file
         .iter()
-        .position(|x| x.contains("# NIX-ADD END"))
+        .position(|x| x.contains("# SNOW END"))
         .unwrap();
 
     let output_as_string = from_utf8(output_name.as_bytes()).unwrap().to_owned();
