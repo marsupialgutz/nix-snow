@@ -32,7 +32,6 @@
         rustc = rust;
         rust-src = rust;
         rustfmt = rust;
-        clippy = rust;
       };
     in {
       defaultPackage = naersk-lib.buildPackage ./.;
