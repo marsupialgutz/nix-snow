@@ -30,7 +30,6 @@
       naersk-lib = naersk.lib."${system}".override {
         cargo = rust;
         rustc = rust;
-        rust-src = rust;
       };
     in {
       defaultPackage = naersk-lib.buildPackage ./.;
