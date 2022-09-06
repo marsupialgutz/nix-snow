@@ -1,6 +1,8 @@
+#![feature(let_chains)]
 mod modes;
 
 use {
+    json::parse,
     modes::{add::add_package, remove::remove_package},
     once_cell::sync::Lazy,
     serde_derive::Deserialize,
@@ -11,6 +13,7 @@ use {
         process::{exit, Command, Stdio},
         str::from_utf8,
     },
+    temp_file::with_contents,
     toml::from_str,
 };
 
@@ -23,7 +26,7 @@ pub struct Config {
 pub static CONFIG: Lazy<Config> = Lazy::new(read_config);
 
 fn main() {
-    let args = args().collect::<Vec<String>>();
+    let args = args().collect::<Vec<_>>();
 
     match args.len() {
         1 => {
@@ -63,7 +66,7 @@ fn run(args: Vec<String>) {
 
     let binding = command.wait_with_output().expect("Failed to wait on sed");
     let output = String::from_utf8_lossy(binding.stdout.as_slice());
-    let parsed = json::parse(&output).unwrap();
+    let parsed = parse(&output).unwrap();
 
     let mut packages = Vec::new();
     for (key, _) in parsed.entries() {
@@ -74,7 +77,7 @@ fn run(args: Vec<String>) {
         output_name = String::from_utf8_lossy(packages[0].as_bytes()).to_string();
     }
 
-    let file = temp_file::with_contents(output.as_bytes());
+    let file = with_contents(output.as_bytes());
 
     if packages.len() > 1 {
         let mut fzf = Command::new("fzf")
@@ -108,7 +111,7 @@ fn run(args: Vec<String>) {
 
     let home_file = {
         if let Some(path) = &CONFIG.path {
-            path.to_owned()
+            read_to_string(path.replace("~", &var("HOME").unwrap())).unwrap()
         } else {
             read_to_string(format!(
                 "{}/nix-config/home/default.nix",
@@ -121,52 +124,47 @@ fn run(args: Vec<String>) {
     .map(|x| x.to_string())
     .collect::<Vec<_>>();
 
-    let beginning = home_file
-        .iter()
-        .position(|x| x.contains("# SNOW BEGIN"))
-        .unwrap();
+    if let Some(beginning) = home_file.iter().position(|x| x.trim().contains("# SNOW BEGIN")) && let Some(end) = home_file.iter().position(|x| x.trim().contains("# SNOW END")) {
+        let output_as_string = from_utf8(output_name.as_bytes()).unwrap().to_owned();
+        let output_new_as_string = from_utf8(&output_new).unwrap().to_owned();
 
-    let end = home_file
-        .iter()
-        .position(|x| x.contains("# SNOW END"))
-        .unwrap();
-
-    let output_as_string = from_utf8(output_name.as_bytes()).unwrap().to_owned();
-    let output_new_as_string = from_utf8(&output_new).unwrap().to_owned();
-
-    if output_as_string.trim().is_empty() || output_new_as_string.trim().is_empty() {
-        eprintln!("Package {} not found.", &args[2]);
-        exit(1);
-    }
-
-    match args[1].as_str() {
-        "--help" => {
-            eprintln!("Usage: snow [add/remove] <package_name>");
-            exit(0);
-        }
-        "a" | "add" => {
-            add_package(
-                home_file,
-                beginning,
-                end,
-                packages,
-                output_as_string,
-                output_new_as_string,
-            );
-        }
-        "r" | "remove" => {
-            remove_package(
-                home_file,
-                beginning,
-                end,
-                packages,
-                output_as_string,
-                output_new_as_string,
-            );
-        }
-        _ => {
-            eprintln!("Please enter a valid command.");
+        if output_as_string.trim().is_empty() || output_new_as_string.trim().is_empty() {
+            eprintln!("Package {} not found.", &args[2]);
             exit(1);
         }
+
+        match args[1].as_str() {
+            "--help" => {
+                eprintln!("Usage: snow [add/remove] <package_name>");
+                exit(0);
+            }
+            "a" | "add" => {
+                add_package(
+                    home_file,
+                    beginning,
+                    end,
+                    packages,
+                    output_as_string,
+                    output_new_as_string,
+                );
+            }
+            "r" | "remove" => {
+                remove_package(
+                    home_file,
+                    beginning,
+                    end,
+                    packages,
+                    output_as_string,
+                    output_new_as_string,
+                );
+            }
+            _ => {
+                eprintln!("Please enter a valid command.");
+                exit(1);
+            }
+        }
+    } else {
+        eprintln!("Begin/End location not found.");
+        exit(1);
     }
 }
