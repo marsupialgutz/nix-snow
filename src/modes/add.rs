@@ -1,11 +1,12 @@
-use std::{
-    env::{set_current_dir, var},
-    fs::write,
-    io::{stdin, stdout, Write},
-    process::{exit, Command},
+use {
+    crate::CONFIG,
+    std::{
+        env::{set_current_dir, var},
+        fs::write,
+        io::{stdin, stdout, Write},
+        process::{exit, Command},
+    },
 };
-
-use crate::CONFIG;
 
 pub fn add_package(
     mut home_file: Vec<String>,
@@ -47,7 +48,13 @@ pub fn add_package(
     home_file[beginning..end].sort();
 
     write(
-        format!("{}/nix-config/home/default.nix", var("HOME").unwrap()),
+        {
+            if let Some(path) = &CONFIG.path {
+                path.to_owned()
+            } else {
+                format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
+            }
+        },
         home_file.join("\n"),
     )
     .unwrap();

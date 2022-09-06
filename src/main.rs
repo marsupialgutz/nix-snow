@@ -1,20 +1,23 @@
 mod modes;
 
-use modes::{add::add_package, remove::remove_package};
-use once_cell::sync::Lazy;
-use serde_derive::Deserialize;
-use std::{
-    env::{args, var},
-    fs::read_to_string,
-    io::Write,
-    process::{exit, Command, Stdio},
-    str::from_utf8,
+use {
+    modes::{add::add_package, remove::remove_package},
+    once_cell::sync::Lazy,
+    serde_derive::Deserialize,
+    std::{
+        env::{args, var},
+        fs::read_to_string,
+        io::Write,
+        process::{exit, Command, Stdio},
+        str::from_utf8,
+    },
+    toml::from_str,
 };
-use toml::from_str;
 
 #[derive(Deserialize)]
 pub struct Config {
     rebuild: String,
+    path: Option<String>,
 }
 
 pub static CONFIG: Lazy<Config> = Lazy::new(read_config);
@@ -24,7 +27,7 @@ fn main() {
 
     match args.len() {
         1 => {
-            eprintln!("Usage: snow [add/remove] <package_name>");
+            eprintln!("Usage: snow [add/remove] <package>");
             exit(1);
         }
         2 => {
@@ -103,14 +106,20 @@ fn run(args: Vec<String>) {
         }
     }
 
-    let home_file: Vec<String> = read_to_string(format!(
-        "{}/nix-config/home/default.nix",
-        var("HOME").unwrap()
-    ))
-    .unwrap()
+    let home_file = {
+        if let Some(path) = &CONFIG.path {
+            path.to_owned()
+        } else {
+            read_to_string(format!(
+                "{}/nix-config/home/default.nix",
+                var("HOME").unwrap()
+            ))
+            .unwrap()
+        }
+    }
     .split('\n')
     .map(|x| x.to_string())
-    .collect();
+    .collect::<Vec<_>>();
 
     let beginning = home_file
         .iter()
@@ -124,6 +133,11 @@ fn run(args: Vec<String>) {
 
     let output_as_string = from_utf8(output_name.as_bytes()).unwrap().to_owned();
     let output_new_as_string = from_utf8(&output_new).unwrap().to_owned();
+
+    if output_as_string.trim().is_empty() || output_new_as_string.trim().is_empty() {
+        eprintln!("Package {} not found.", &args[2]);
+        exit(1);
+    }
 
     match args[1].as_str() {
         "--help" => {

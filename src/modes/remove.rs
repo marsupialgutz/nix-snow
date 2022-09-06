@@ -1,21 +1,22 @@
-use std::{
-    env::{set_current_dir, var},
-    fs::write,
-    io::{stdin, stdout, Write},
-    process::Command,
+use {
+    crate::CONFIG,
+    std::{
+        env::{set_current_dir, var},
+        fs::write,
+        io::{stdin, stdout, Write},
+        process::{exit, Command},
+    },
 };
 
-use crate::CONFIG;
-
 pub fn remove_package(
-    mut home_file: Vec<String>,
+    home_file: Vec<String>,
     beginning: usize,
     end: usize,
     packages: Vec<String>,
     output: String,
     output_new: String,
 ) {
-    home_file = home_file
+    let home_file_new = home_file
         .iter()
         .enumerate()
         .filter(|(i, x)| {
@@ -32,11 +33,22 @@ pub fn remove_package(
                 }))
         })
         .map(|(_, x)| x.to_string())
-        .collect();
+        .collect::<Vec<_>>();
+
+    if home_file_new == home_file {
+        eprintln!("Package {} is not in your list of Nix packages.", {
+            if packages.len() > 1 {
+                output_new.trim()
+            } else {
+                output.trim()
+            }
+        });
+        exit(1);
+    }
 
     write(
         format!("{}/nix-config/home/default.nix", var("HOME").unwrap()),
-        home_file.join("\n"),
+        home_file_new.join("\n"),
     )
     .unwrap();
 
@@ -58,12 +70,12 @@ pub fn remove_package(
                 .unwrap();
         }
         "ask" => {
-            print!("Would you like to rebuild now? (y/n): ");
+            print!("Would you like to rebuild now? (Y/n): ");
             let mut response = String::new();
             stdout().flush().unwrap();
             stdin().read_line(&mut response).unwrap();
 
-            if response.trim() == "y" {
+            if response.trim() == "y" || response.trim() == "" {
                 set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
                 Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                     .spawn()
@@ -73,6 +85,6 @@ pub fn remove_package(
             }
         }
         "never" => (),
-        _ => panic!("Unknown setting"),
+        _ => panic!("Unknown setting {}", CONFIG.rebuild),
     }
 }
