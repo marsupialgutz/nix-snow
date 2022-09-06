@@ -31,7 +31,6 @@
         cargo = rust;
         rustc = rust;
         rust-src = rust;
-        rustfmt = rust;
       };
     in {
       defaultPackage = naersk-lib.buildPackage ./.;
