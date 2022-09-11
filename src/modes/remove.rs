@@ -15,6 +15,7 @@ pub fn remove_package(
     packages: Vec<String>,
     output: String,
     output_new: String,
+    dry_run: bool,
 ) {
     let home_file_new = home_file
         .iter()
@@ -46,17 +47,19 @@ pub fn remove_package(
         exit(1);
     }
 
-    write(
-        {
-            if let Some(path) = &CONFIG.path {
-                path.replace("~", &var("HOME").unwrap()).to_owned()
-            } else {
-                format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
-            }
-        },
-        home_file_new.join("\n"),
-    )
-    .unwrap();
+    if !dry_run {
+        write(
+            {
+                if let Some(path) = &CONFIG.path {
+                    path.replace("~", &var("HOME").unwrap()).to_owned()
+                } else {
+                    format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
+                }
+            },
+            home_file_new.join("\n"),
+        )
+        .unwrap();
+    }
 
     println!("Removed {} from your Nix packages.", {
         if packages.len() > 1 {
@@ -66,22 +69,9 @@ pub fn remove_package(
         }
     });
 
-    match CONFIG.rebuild.as_str() {
-        "always" => {
-            set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-            Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
-        }
-        "ask" => {
-            print!("Would you like to rebuild now? (Y/n): ");
-            let mut response = String::new();
-            stdout().flush().unwrap();
-            stdin().read_line(&mut response).unwrap();
-
-            if response.trim() == "y" || response.trim() == "" {
+    if !dry_run {
+        match CONFIG.rebuild.as_str() {
+            "always" => {
                 set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
                 Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                     .spawn()
@@ -89,8 +79,23 @@ pub fn remove_package(
                     .wait()
                     .unwrap();
             }
+            "ask" => {
+                print!("Would you like to rebuild now? (Y/n): ");
+                let mut response = String::new();
+                stdout().flush().unwrap();
+                stdin().read_line(&mut response).unwrap();
+
+                if response.trim() == "y" || response.trim() == "" {
+                    set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
+                    Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
+                        .spawn()
+                        .unwrap()
+                        .wait()
+                        .unwrap();
+                }
+            }
+            "never" => (),
+            _ => panic!("Unknown setting {}", CONFIG.rebuild),
         }
-        "never" => (),
-        _ => panic!("Unknown setting {}", CONFIG.rebuild),
     }
 }

@@ -30,14 +30,14 @@ fn main() {
 
     match args.len() {
         1 => {
-            eprintln!("Usage: snow [add/remove] <package>");
+            eprintln!("Usage: snow [-d/--dry-run] [add/remove] <package>");
             exit(1);
         }
         2 => {
             eprintln!("Please enter a package name.");
             exit(1);
         }
-        3 => {
+        3 | 4 => {
             run(args);
         }
         _ => {
@@ -149,6 +149,13 @@ fn run(args: Vec<String>) {
                     packages,
                     output_as_string,
                     output_new_as_string,
+                    {
+                        if args.iter().any(|n| n == "-d" || n == "--dry-run") {
+                            true
+                        } else {
+                            false
+                        }
+                    }
                 );
             }
             "r" | "remove" => {
@@ -159,6 +166,14 @@ fn run(args: Vec<String>) {
                     packages,
                     output_as_string,
                     output_new_as_string,
+                    {
+                        if args.iter().any(|n| n == "-d" || n == "--dry-run") {
+                            true
+                        } else {
+                            false
+                        }
+                    }
+
                 );
             }
             _ => {

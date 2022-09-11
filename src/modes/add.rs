@@ -15,49 +15,52 @@ pub fn add_package(
     packages: Vec<String>,
     output: String,
     output_new: String,
+    dry_run: bool,
 ) {
     let whitespace = home_file[beginning]
         .chars()
         .take_while(|x| x.is_whitespace())
         .collect::<String>();
 
-    if home_file[beginning..end]
-        .iter()
-        .any(|x| *x.trim() == *output_new.trim())
-        || (packages.len() <= 1
-            && home_file[beginning..end]
-                .iter()
-                .any(|x| *x.trim() == *output.trim()))
-    {
-        eprintln!("Package already installed, not adding.");
-        exit(1);
-    }
-
-    home_file.insert(
-        beginning + 1,
-        whitespace
-            + ({
-                if packages.len() > 1 {
-                    output_new.trim()
-                } else {
-                    output.trim()
-                }
-            }),
-    );
-
-    home_file[beginning..end].sort();
-
-    write(
+    if !dry_run {
+        if home_file[beginning..end]
+            .iter()
+            .any(|x| *x.trim() == *output_new.trim())
+            || (packages.len() <= 1
+                && home_file[beginning..end]
+                    .iter()
+                    .any(|x| *x.trim() == *output.trim()))
         {
-            if let Some(path) = &CONFIG.path {
-                path.replace("~", &var("HOME").unwrap()).to_owned()
-            } else {
-                format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
-            }
-        },
-        home_file.join("\n"),
-    )
-    .unwrap();
+            eprintln!("Package already installed, not adding.");
+            exit(1);
+        }
+
+        home_file.insert(
+            beginning + 1,
+            whitespace
+                + ({
+                    if packages.len() > 1 {
+                        output_new.trim()
+                    } else {
+                        output.trim()
+                    }
+                }),
+        );
+
+        home_file[beginning..end].sort();
+
+        write(
+            {
+                if let Some(path) = &CONFIG.path {
+                    path.replace("~", &var("HOME").unwrap()).to_owned()
+                } else {
+                    format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
+                }
+            },
+            home_file.join("\n"),
+        )
+        .unwrap();
+    }
 
     println!("Added {} to your Nix packages.", {
         if packages.len() > 1 {
@@ -67,22 +70,9 @@ pub fn add_package(
         }
     });
 
-    match CONFIG.rebuild.as_str() {
-        "always" => {
-            set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-            Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
-        }
-        "ask" => {
-            print!("Would you like to rebuild now? (y/n): ");
-            let mut response = String::new();
-            stdout().flush().unwrap();
-            stdin().read_line(&mut response).unwrap();
-
-            if response.trim() == "y" {
+    if !dry_run {
+        match CONFIG.rebuild.as_str() {
+            "always" => {
                 set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
                 Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                     .spawn()
@@ -90,8 +80,23 @@ pub fn add_package(
                     .wait()
                     .unwrap();
             }
+            "ask" => {
+                print!("Would you like to rebuild now? (y/n): ");
+                let mut response = String::new();
+                stdout().flush().unwrap();
+                stdin().read_line(&mut response).unwrap();
+
+                if response.trim() == "y" {
+                    set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
+                    Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
+                        .spawn()
+                        .unwrap()
+                        .wait()
+                        .unwrap();
+                }
+            }
+            "never" => (),
+            _ => panic!("Unknown setting"),
         }
-        "never" => (),
-        _ => panic!("Unknown setting"),
     }
 }
