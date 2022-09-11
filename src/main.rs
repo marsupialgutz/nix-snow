@@ -128,7 +128,7 @@ fn run(args: Vec<String>) {
         let output_as_string = from_utf8(output_name.as_bytes()).unwrap().to_owned();
         let output_new_as_string = from_utf8(&output_new).unwrap().to_owned();
 
-        if output_as_string.trim().is_empty() || output_new_as_string.trim().is_empty() {
+        if (packages.len() == 1 && output_as_string.trim().is_empty()) || (packages.len() > 1 && output_new_as_string.trim().is_empty()) {
             eprintln!("Package {} not found.", &args[2]);
             exit(1);
         }
