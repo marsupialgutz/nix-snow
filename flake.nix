@@ -40,7 +40,7 @@
 
       devShell = with pkgs;
         mkShell {
-          nativeBuildInputs = [rust];
+          nativeBuildInputs = [rust mold];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
     });
