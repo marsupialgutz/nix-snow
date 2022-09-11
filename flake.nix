@@ -3,9 +3,9 @@
     naersk.url = "github:nix-community/naersk/master";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     utils.url = "github:numtide/flake-utils";
-    mozillapkgs = {
-      url = "github:mozilla/nixpkgs-mozilla";
-      flake = false;
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
@@ -14,22 +14,13 @@
     nixpkgs,
     utils,
     naersk,
-    mozillapkgs,
+    fenix,
   }:
     utils.lib.eachDefaultSystem (system: let
-      pkgs = import nixpkgs {inherit system;};
-      mozilla = pkgs.callPackage (mozillapkgs + "/package-set.nix") {};
-      rust =
-        (mozilla.rustChannelOf {
-          date = "2022-09-11";
-          channel = "nightly";
-          sha256 = "Uh9AXXzDJzixC5Eaon7GoXhvF0fcT55ZqBaFvJTDlSo=";
-        })
-        .rust;
-
-      naersk-lib = naersk.lib."${system}".override {
-        cargo = rust;
-        rustc = rust;
+      pkgs = nixpkgs.legacyPackages.${system};
+      rust = with fenix.packages.${system}; rec {
+        native = latest;
+        dev.toolchain = combine [native.toolchain rust-analyzer];
       };
     in {
       defaultPackage = naersk-lib.buildPackage ./.;
@@ -40,8 +31,24 @@
 
       devShell = with pkgs;
         mkShell {
-          nativeBuildInputs = [rust];
+          nativeBuildInputs = [
+            rust.dev.toolchain
+            mold
+            cmake
+          ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
+
+          LD_LIBRARY_PATH =
+            nixpkgs.lib.strings.makeLibraryPath
+            (with pkgs; [
+              xorg.libX11
+              xorg.libXcursor
+              # xorg.libXrandr
+              libxkbcommon
+            ]);
+
+          MOLD_PATH = "${pkgs.mold}/bin/mold";
+          LD_PRELOAD = "${pkgs.mold}/lib/mold/mold-wrapper.so";
         };
     });
 }
