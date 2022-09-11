@@ -47,7 +47,13 @@ pub fn remove_package(
     }
 
     write(
-        format!("{}/nix-config/home/default.nix", var("HOME").unwrap()),
+        {
+            if let Some(path) = &CONFIG.path {
+                path.replace("~", &var("HOME").unwrap()).to_owned()
+            } else {
+                format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
+            }
+        },
         home_file_new.join("\n"),
     )
     .unwrap();

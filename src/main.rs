@@ -48,8 +48,14 @@ fn main() {
 }
 
 fn read_config() -> Config {
-    let path = format!("{}/.config/nix-snow/config.toml", var("HOME").unwrap());
-    let content = read_to_string(path).unwrap();
+    let content = read_to_string({
+        if let Some(p) = &CONFIG.path {
+            p.replace("~", &var("HOME").unwrap()).to_owned()
+        } else {
+            format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
+        }
+    })
+    .unwrap();
     from_str(&content).unwrap()
 }
 
@@ -109,17 +115,14 @@ fn run(args: Vec<String>) {
         }
     }
 
-    let home_file = {
+    let home_file = read_to_string({
         if let Some(path) = &CONFIG.path {
-            read_to_string(path.replace("~", &var("HOME").unwrap())).unwrap()
+            path.replace("~", &var("HOME").unwrap())
         } else {
-            read_to_string(format!(
-                "{}/nix-config/home/default.nix",
-                var("HOME").unwrap()
-            ))
-            .unwrap()
+            format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
         }
-    }
+    })
+    .unwrap()
     .split('\n')
     .map(|x| x.to_string())
     .collect::<Vec<_>>();
