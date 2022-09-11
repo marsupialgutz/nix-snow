@@ -150,7 +150,7 @@ fn run(args: Vec<String>) {
                     output_as_string,
                     output_new_as_string,
                     {
-                        if args.iter().any(|n| n == "-d" || n == "--dry-run") {
+                        if args[3] == "-d" || args[3] == "--dry-run" {
                             true
                         } else {
                             false
@@ -167,7 +167,7 @@ fn run(args: Vec<String>) {
                     output_as_string,
                     output_new_as_string,
                     {
-                        if args.iter().any(|n| n == "-d" || n == "--dry-run") {
+                        if args[3] == "-d" || args[3] == "--dry-run" {
                             true
                         } else {
                             false
