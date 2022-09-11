@@ -21,7 +21,6 @@
   }:
     flake-utils.lib.eachDefaultSystem (system: {
       packages.default = let
-        pkgs = nixpkgs.legacyPackages.${system};
         toolchain = fenix.packages.${system}.minimal.toolchain;
       in
         (naersk.lib.${system}.override {
@@ -31,5 +30,12 @@
         .buildPackage {
           src = ./.;
         };
+      devShell = let
+        pkgs = nixpkgs.legacyPackages.${system};
+      in
+        with pkgs;
+          mkShell {
+            RUST_SRC_PATH = rustPlatform.rustLibSrc;
+          };
     });
 }
