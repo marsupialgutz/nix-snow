@@ -2,6 +2,7 @@
 [target.x86_64-unknown-linux-gnu]
 rustflags = [
     '-Zshare-generics=y',
+    'link-arg=-fuse-ld=mold'
 ]
 
 [profile.dev]
