@@ -51,7 +51,7 @@ pub fn add_package(
         {
             if let Some(path) = &CONFIG.path {
                 println!("{path}");
-                path.to_owned()
+                path.replace("~", &var("HOME").unwrap()).to_owned()
             } else {
                 format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
             }
