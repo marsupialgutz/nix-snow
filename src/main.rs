@@ -159,11 +159,11 @@ fn read_config() -> Config {
             exit(1);
         })
     ))
-    .unwrap();
-    from_str(&content).unwrap_or_else(|e| {
+    .unwrap_or_else(|e| {
         eprintln!("Cannot find config file: {e}");
         exit(1);
-    })
+    });
+    from_str(&content).unwrap()
 }
 
 fn get_pkg(opts: &Args) -> String {
