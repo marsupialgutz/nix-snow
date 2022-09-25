@@ -1,11 +1,6 @@
 use {
-    crate::CONFIG,
-    std::{
-        env::{set_current_dir, var},
-        fs::write,
-        io::{stdin, stdout, Write},
-        process::{exit, Command},
-    },
+    crate::{rebuild, CONFIG},
+    std::{env::var, fs::write, process::exit},
 };
 
 pub fn add_package(mut file: Vec<String>, package: String) {
@@ -20,7 +15,7 @@ pub fn add_package(mut file: Vec<String>, package: String) {
                 .iter()
                 .any(|x| x.trim() == package.trim())
             {
-                eprintln!("Package already installed, not adding.");
+                eprintln!("\x1b[31m✗\x1b[0m Package already installed, not adding.");
                 exit(1);
             }
 
@@ -41,33 +36,7 @@ pub fn add_package(mut file: Vec<String>, package: String) {
     )
     .unwrap();
 
-    println!("Added {package} to your Nix packages.");
+    println!("✓ Added {package} to your Nix packages.");
 
-    match CONFIG.rebuild.as_str() {
-        "always" => {
-            set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-            Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
-        }
-        "ask" => {
-            print!("Would you like to rebuild now? (y/n): ");
-            let mut response = String::new();
-            stdout().flush().unwrap();
-            stdin().read_line(&mut response).unwrap();
-
-            if response.trim() == "y" {
-                set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-                Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
-                    .spawn()
-                    .unwrap()
-                    .wait()
-                    .unwrap();
-            }
-        }
-        "never" => (),
-        _ => panic!("Unknown setting"),
-    }
+    rebuild();
 }

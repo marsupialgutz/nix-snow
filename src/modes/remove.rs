@@ -1,11 +1,8 @@
+use crate::rebuild;
+
 use {
     crate::CONFIG,
-    std::{
-        env::{set_current_dir, var},
-        fs::write,
-        io::{stdin, stdout, Write},
-        process::{exit, Command},
-    },
+    std::{env::var, fs::write, process::exit},
 };
 
 pub fn remove_package(file: Vec<String>, package: String) {
@@ -19,7 +16,9 @@ pub fn remove_package(file: Vec<String>, package: String) {
                 .collect::<Vec<_>>();
 
             if new_file == file {
-                eprintln!("Package {package} is not in your list of Nix packages.");
+                eprintln!(
+                    "\x1b[31m✗\x1b[0m Package {package} is not in your list of Nix packages."
+                );
                 exit(1);
             }
 
@@ -37,33 +36,7 @@ pub fn remove_package(file: Vec<String>, package: String) {
         }
     }
 
-    println!("Removed {package} from your Nix packages.");
+    println!("✓ Removed {package} from your Nix packages.");
 
-    match CONFIG.rebuild.as_str() {
-        "always" => {
-            set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-            Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
-                .spawn()
-                .unwrap()
-                .wait()
-                .unwrap();
-        }
-        "ask" => {
-            print!("Would you like to rebuild now? (Y/n): ");
-            let mut response = String::new();
-            stdout().flush().unwrap();
-            stdin().read_line(&mut response).unwrap();
-
-            if response.trim() == "y" || response.trim() == "" {
-                set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-                Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
-                    .spawn()
-                    .unwrap()
-                    .wait()
-                    .unwrap();
-            }
-        }
-        "never" => (),
-        _ => panic!("Unknown setting {}", CONFIG.rebuild),
-    }
+    rebuild();
 }
