@@ -160,7 +160,10 @@ fn read_config() -> Config {
         })
     ))
     .unwrap();
-    from_str(&content).unwrap()
+    from_str(&content).unwrap_or_else(|e| {
+        eprintln!("Cannot find config file: {e}");
+        exit(1);
+    })
 }
 
 fn get_pkg(opts: &Args) -> String {
