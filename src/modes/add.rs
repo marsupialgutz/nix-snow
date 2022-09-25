@@ -1,9 +1,9 @@
 use {
-    crate::{rebuild, CONFIG},
+    crate::{run_rebuild, CONFIG},
     std::{env::var, fs::write, process::exit},
 };
 
-pub fn add_package(mut file: Vec<String>, package: String) {
+pub fn add_package(mut file: Vec<String>, package: String, rebuild: bool) {
     if let Some(beginning) = file.iter().position(|x| x.trim().contains("# SNOW BEGIN")) {
         if let Some(end) = file.iter().position(|x| x.trim().contains("# SNOW END")) {
             let whitespace = file[beginning]
@@ -36,7 +36,9 @@ pub fn add_package(mut file: Vec<String>, package: String) {
     )
     .unwrap();
 
-    println!("✓ Added {package} to your Nix packages.");
+    println!("\x1b[32m✓\x1b[0m Added {package} to your Nix packages.");
 
-    rebuild();
+    if rebuild {
+        run_rebuild();
+    }
 }

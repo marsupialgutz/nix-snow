@@ -46,12 +46,15 @@ struct Args {
     /// Remove a package
     #[bpaf(long, short, argument("PACKAGE"))]
     remove: Option<String>,
+    /// Don't rebuild if you have "always rebuild" on
+    #[bpaf(long, short)]
+    no_rebuild: bool,
 }
 
-pub fn rebuild() {
+pub fn run_rebuild() {
     match CONFIG.rebuild.as_str() {
         "always" => {
-            let sp = Spinner::new(Spinners::Dots, format!("Rebuilding..."), Color::Blue);
+            let sp = Spinner::new(Spinners::Dots, "Rebuilding...", Color::Blue);
             set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
             Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                 .stdout(Stdio::null())
@@ -69,7 +72,7 @@ pub fn rebuild() {
             stdin().read_line(&mut response).unwrap();
 
             if response.trim() == "y" {
-                let sp = Spinner::new(Spinners::Dots, format!("Rebuilding..."), Color::Blue);
+                let sp = Spinner::new(Spinners::Dots, "Rebuilding...", Color::Blue);
                 set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
                 Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                     .stdout(Stdio::null())
@@ -104,6 +107,8 @@ fn main() {
         exit(1);
     }
 
+    let rebuild = !opts.no_rebuild;
+
     let output_str = get_name(&opts);
 
     if opts.dry_run {
@@ -123,9 +128,9 @@ fn main() {
     .collect::<Vec<_>>();
 
     if opts.add.is_some() && opts.remove.is_none() {
-        add_package(file, output_str);
+        add_package(file, output_str, rebuild);
     } else if opts.remove.is_some() && opts.add.is_none() {
-        remove_package(file, output_str);
+        remove_package(file, output_str, rebuild);
     }
 }
 
@@ -158,12 +163,12 @@ fn get_pkg(opts: &Args) -> String {
 fn get_name(opts: &Args) -> String {
     let sp = Spinner::new(
         Spinners::Dots,
-        format!("Searching for {}...", get_pkg(&opts)),
+        format!("Searching for {}...", get_pkg(opts)),
         Color::Blue,
     );
 
     let cmd = Command::new("nix")
-        .args(&["search", "--json", "nixpkgs", &get_pkg(&opts)])
+        .args(&["search", "--json", "nixpkgs", &get_pkg(opts)])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -182,13 +187,13 @@ fn get_name(opts: &Args) -> String {
     }
 
     if pkgs.is_empty() {
-        sp.fail(&format!("Package not found: {}", get_pkg(&opts)));
+        sp.fail(&format!("Package not found: {}", get_pkg(opts)));
         exit(1);
     } else if pkgs.len() == 1 {
-        sp.success(&format!("Found {}!", get_pkg(&opts)));
+        sp.success(&format!("Found {}!", get_pkg(opts)));
         String::from_utf8_lossy(pkgs[0].as_bytes()).to_string()
     } else {
-        sp.success(&format!("Found {}!", get_pkg(&opts)));
+        sp.success(&format!("Found {}!", get_pkg(opts)));
         let temp_file = with_contents(out.as_bytes());
         let mut search = Command::new("fzf")
             .args(&[
