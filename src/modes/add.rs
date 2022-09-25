@@ -8,71 +8,57 @@ use {
     },
 };
 
-pub fn add_package(
-    mut home_file: Vec<String>,
-    beginning: usize,
-    end: usize,
-    packages: Vec<String>,
-    output: String,
-    output_new: String,
-    dry_run: bool,
-) {
-    let whitespace = home_file[beginning]
-        .chars()
-        .take_while(|x| x.is_whitespace())
-        .collect::<String>();
+pub fn add_package(mut file: Vec<String>, package: String) {
+    if let Some(beginning) = file.iter().position(|x| x.trim().contains("# SNOW BEGIN")) {
+        if let Some(end) = file.iter().position(|x| x.trim().contains("# SNOW END")) {
+            let whitespace = file[beginning]
+                .chars()
+                .take_while(|x| x.is_whitespace())
+                .collect::<String>();
 
-    if !dry_run {
-        if home_file[beginning..end]
-            .iter()
-            .any(|x| *x.trim() == *output_new.trim())
-            || (packages.len() <= 1
-                && home_file[beginning..end]
-                    .iter()
-                    .any(|x| *x.trim() == *output.trim()))
-        {
-            eprintln!("Package already installed, not adding.");
-            exit(1);
-        }
-
-        home_file.insert(
-            beginning + 1,
-            whitespace
-                + ({
-                    if packages.len() > 1 {
-                        output_new.trim()
-                    } else {
-                        output.trim()
-                    }
-                }),
-        );
-
-        home_file[beginning..end].sort();
-
-        write(
+            if file[beginning..end]
+                .iter()
+                .any(|x| x.trim() == package.trim())
             {
-                if let Some(path) = &CONFIG.path {
-                    path.replace("~", &var("HOME").unwrap()).to_owned()
-                } else {
-                    format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
-                }
-            },
-            home_file.join("\n"),
-        )
-        .unwrap();
+                eprintln!("Package already installed, not adding.");
+                exit(1);
+            }
+
+            file.insert(beginning + 1, whitespace + &package);
+            file[beginning..end].sort();
+        }
     }
 
-    println!("Added {} to your Nix packages.", {
-        if packages.len() > 1 {
-            output_new.trim()
-        } else {
-            output.trim()
-        }
-    });
+    write(
+        {
+            if let Some(path) = &CONFIG.path {
+                path.replace('~', &var("HOME").unwrap())
+            } else {
+                format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
+            }
+        },
+        file.join("\n"),
+    )
+    .unwrap();
 
-    if !dry_run {
-        match CONFIG.rebuild.as_str() {
-            "always" => {
+    println!("Added {package} to your Nix packages.");
+
+    match CONFIG.rebuild.as_str() {
+        "always" => {
+            set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
+            Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
+                .spawn()
+                .unwrap()
+                .wait()
+                .unwrap();
+        }
+        "ask" => {
+            print!("Would you like to rebuild now? (y/n): ");
+            let mut response = String::new();
+            stdout().flush().unwrap();
+            stdin().read_line(&mut response).unwrap();
+
+            if response.trim() == "y" {
                 set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
                 Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                     .spawn()
@@ -80,23 +66,8 @@ pub fn add_package(
                     .wait()
                     .unwrap();
             }
-            "ask" => {
-                print!("Would you like to rebuild now? (y/n): ");
-                let mut response = String::new();
-                stdout().flush().unwrap();
-                stdin().read_line(&mut response).unwrap();
-
-                if response.trim() == "y" {
-                    set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-                    Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
-                        .spawn()
-                        .unwrap()
-                        .wait()
-                        .unwrap();
-                }
-            }
-            "never" => (),
-            _ => panic!("Unknown setting"),
         }
+        "never" => (),
+        _ => panic!("Unknown setting"),
     }
 }
