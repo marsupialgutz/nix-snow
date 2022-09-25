@@ -17,10 +17,10 @@
     in {
       defaultPackage = naersk-lib.buildPackage {
         root = ./.;
-        buildPhase = ''
-          makeWrapper $out/bin/foo $wrapperfile \
-            --prefix PATH : ${lib.makeBinPath [hello git]} \
-            --suffix PATH : ${lib.makeBinPath [xdg-utils]}
+        buildInputs = [ pkgs.makeWrapper ];
+        postInstall = ''
+          wrapProgram $out/bin/snow \
+            --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [jq fzf])} \
         '';
       };
 
