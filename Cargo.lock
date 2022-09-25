@@ -14,6 +14,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bpaf"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a26b84feed0bdb469496d0aef81ff5a0c26265e28aff4e12b14bd6437a5503e8"
+dependencies = [
+ "bpaf_derive",
+]
+
+[[package]]
+name = "bpaf_derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2f2ef2d188fe0352c9c13ed50c64380cc6313c063a08ddfd71455aef7ae901ac"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "colored"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -114,6 +134,7 @@ dependencies = [
 name = "snow"
 version = "0.1.0"
 dependencies = [
+ "bpaf",
  "json",
  "once_cell",
  "serde",

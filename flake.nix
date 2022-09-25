@@ -1,41 +1,32 @@
 {
   inputs = {
-    fenix = {
-      url = "github:nix-community/fenix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    flake-utils.url = "github:numtide/flake-utils";
-    naersk = {
-      url = "github:nix-community/naersk";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    naersk.url = "github:nix-community/naersk/master";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    utils.url = "github:numtide/flake-utils";
   };
 
   outputs = {
     self,
-    fenix,
-    flake-utils,
-    naersk,
     nixpkgs,
+    utils,
+    naersk,
   }:
-    flake-utils.lib.eachDefaultSystem (system: {
-      packages.default = let
-        toolchain = fenix.packages.${system}.minimal.toolchain;
-      in
-        (naersk.lib.${system}.override {
-          cargo = toolchain;
-          rustc = toolchain;
-        })
-        .buildPackage {
-          src = ./.;
+    utils.lib.eachDefaultSystem (system: let
+      pkgs = import nixpkgs {inherit system;};
+      naersk-lib = pkgs.callPackage naersk {};
+    in {
+      defaultPackage = naersk-lib.buildPackage {
+        root = ./.;
+      };
+
+      defaultApp = utils.lib.mkApp {
+        drv = self.defaultPackage."${system}";
+      };
+
+      devShell = with pkgs;
+        mkShell {
+          buildInputs = [cargo rustc rustfmt pre-commit rustPackages.clippy];
+          RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
-      devShell = let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-        with pkgs;
-          mkShell {
-            RUST_SRC_PATH = rustPlatform.rustLibSrc;
-          };
     });
 }

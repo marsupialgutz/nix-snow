@@ -1,13 +1,14 @@
-#![feature(let_chains)]
-mod modes;
+use spinoff::{Color, Spinner, Spinners};
 
+mod modes;
 use {
+    bpaf::Bpaf,
     json::parse,
     modes::{add::add_package, remove::remove_package},
     once_cell::sync::Lazy,
     serde_derive::Deserialize,
     std::{
-        env::{args, var},
+        env::var,
         fs::read_to_string,
         io::Write,
         process::{exit, Command, Stdio},
@@ -25,99 +26,115 @@ pub struct Config {
 
 pub static CONFIG: Lazy<Config> = Lazy::new(read_config);
 
+#[derive(Clone, Debug, Bpaf)]
+#[bpaf(options, version)]
+struct Args {
+    #[bpaf(short('d'))]
+    dry_run: bool,
+    #[bpaf(short('a'))]
+    add: Option<String>,
+    #[bpaf(short('r'))]
+    remove: Option<String>,
+}
+
 fn main() {
-    let args = args().collect::<Vec<_>>();
+    let opts = args().run();
 
-    match args.len() {
-        1 => {
-            eprintln!("Usage: snow [-d/--dry-run] [add/remove] <package>");
-            exit(1);
-        }
-        2 => {
-            eprintln!("Please enter a package name.");
-            exit(1);
-        }
-        3 | 4 => {
-            run(args);
-        }
-        _ => {
-            eprintln!("Too many arguments.");
-            exit(1);
-        }
+    if opts.add.is_none() && opts.remove.is_none() {
+        eprintln!(r#"You must either add or remove a package. Use "-h" or "--help" for usage."#);
+        exit(1);
+    } else if opts.add.is_some() && opts.remove.is_some() {
+        eprintln!(
+            r#"You can only add or remove a package, not both. Use "-h" or "--help" for usage."#
+        );
+        exit(1);
     }
-}
 
-fn read_config() -> Config {
-    let content = read_to_string({
-        if let Some(p) = &CONFIG.path {
-            p.replace("~", &var("HOME").unwrap()).to_owned()
-        } else {
-            format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
-        }
-    })
-    .unwrap();
-    from_str(&content).unwrap()
-}
+    let output_str;
 
-fn run(args: Vec<String>) {
-    let mut output_name = String::new();
-    let mut output_new = Vec::new();
+    let sp = Spinner::new(
+        Spinners::Dots,
+        format!("Searching for {}", get_pkg(&opts)),
+        Color::Blue,
+    );
 
-    let command = Command::new("nix")
-        .args(&["search", "--json", "nixpkgs", &args[2]])
+    let cmd = Command::new("nix")
+        .args(&["search", "--json", "nixpkgs", &get_pkg(&opts)])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .unwrap();
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to run nix search: {e}");
+            exit(1);
+        });
 
-    let binding = command.wait_with_output().expect("Failed to wait on sed");
-    let output = String::from_utf8_lossy(binding.stdout.as_slice());
-    let parsed = parse(&output).unwrap();
+    let binding = cmd.wait_with_output().unwrap();
+    let out = String::from_utf8_lossy(binding.stdout.as_slice());
+    let parsed = parse(&out).unwrap();
 
-    let mut packages = Vec::new();
+    let mut pkgs = Vec::new();
     for (key, _) in parsed.entries() {
-        packages.push(key.replacen("legacyPackages.x86_64-linux.", "", 1));
+        pkgs.push(key.replace("legacyPackages.x86_64-linux.", ""))
     }
 
-    if packages.len() == 1 {
-        output_name = String::from_utf8_lossy(packages[0].as_bytes()).to_string();
-    }
+    sp.success("Done!");
 
-    let file = with_contents(output.as_bytes());
-
-    if packages.len() > 1 {
-        let mut fzf = Command::new("fzf")
+    if pkgs.is_empty() {
+        eprintln!("Package not found: {}", get_pkg(&opts));
+        exit(1);
+    } else if pkgs.len() == 1 {
+        output_str = String::from_utf8_lossy(pkgs[0].as_bytes()).to_string();
+    } else {
+        let temp_file = with_contents(out.as_bytes());
+        let mut search = Command::new("fzf")
             .args(&[
                 "--preview-window=wrap:45",
                 "--preview",
                 format!(
                     r#"cat {} | jq -rcs '.[0]["legacyPackages.x86_64-linux.{{}}"]["description"]'"#,
-                    file.path().display()
+                    temp_file.path().display()
                 )
                 .as_str(),
             ])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
-            .unwrap_or_else(|e| panic!("Failed to start fzf, error: {e}"));
-        let stdin = fzf.stdin.as_mut().unwrap();
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to start fzf: {e}");
+                exit(1);
+            });
+        let stdin = search.stdin.as_mut().unwrap();
 
-        stdin.write_all(packages.join("\n").as_bytes()).unwrap();
+        stdin
+            .write_all(pkgs.join("\n").as_bytes())
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to list packages: {e}");
+                exit(1);
+            });
 
-        output_new = fzf
+        let res = search
             .wait_with_output()
-            .expect("Failed to wait on fzf")
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to wait on fzf: {e}");
+                exit(1);
+            })
             .stdout;
 
-        if output_new.is_empty() {
-            eprintln!("No package selected. Exiting...");
+        if res.is_empty() {
+            eprintln!("No package selected");
             exit(1);
         }
+
+        output_str = from_utf8(&res).unwrap().trim_end().to_string();
     }
 
-    let home_file = read_to_string({
+    if opts.dry_run {
+        exit(0)
+    }
+
+    let file = read_to_string({
         if let Some(path) = &CONFIG.path {
-            path.replace("~", &var("HOME").unwrap())
+            path.replace('~', &var("HOME").unwrap())
         } else {
             format!("{}/nix-config/home/default.nix", var("HOME").unwrap())
         }
@@ -127,62 +144,32 @@ fn run(args: Vec<String>) {
     .map(|x| x.to_string())
     .collect::<Vec<_>>();
 
-    if let Some(beginning) = home_file.iter().position(|x| x.trim().contains("# SNOW BEGIN")) && let Some(end) = home_file.iter().position(|x| x.trim().contains("# SNOW END")) {
-        let output_as_string = from_utf8(output_name.as_bytes()).unwrap().to_owned();
-        let output_new_as_string = from_utf8(&output_new).unwrap().to_owned();
+    if opts.add.is_some() && opts.remove.is_none() {
+        add_package(file, output_str);
+    } else if opts.remove.is_some() && opts.add.is_none() {
+        remove_package(file, output_str);
+    }
+}
 
-        if (packages.len() == 1 && output_as_string.trim().is_empty()) || (packages.len() > 1 && output_new_as_string.trim().is_empty()) {
-            eprintln!("Package {} not found.", &args[2]);
+fn read_config() -> Config {
+    let content = read_to_string(format!(
+        "{}/.config/nix-snow/config.toml",
+        var("HOME").unwrap_or_else(|e| {
+            eprintln!("Failed to read config file: {e}");
             exit(1);
-        }
+        })
+    ))
+    .unwrap();
+    from_str(&content).unwrap()
+}
 
-        match args[1].as_str() {
-            "--help" => {
-                eprintln!("Usage: snow [add/remove] <package_name>");
-                exit(0);
-            }
-            "a" | "add" => {
-                add_package(
-                    home_file,
-                    beginning,
-                    end,
-                    packages,
-                    output_as_string,
-                    output_new_as_string,
-                    {
-                        if args[3] == "-d" || args[3] == "--dry-run" {
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                );
-            }
-            "r" | "remove" => {
-                remove_package(
-                    home_file,
-                    beginning,
-                    end,
-                    packages,
-                    output_as_string,
-                    output_new_as_string,
-                    {
-                        if args[3] == "-d" || args[3] == "--dry-run" {
-                            true
-                        } else {
-                            false
-                        }
-                    }
-
-                );
-            }
-            _ => {
-                eprintln!("Please enter a valid command.");
-                exit(1);
-            }
-        }
+fn get_pkg(opts: &Args) -> String {
+    if let Some(add) = &opts.add {
+        add.into()
+    } else if let Some(remove) = &opts.remove {
+        remove.into()
     } else {
-        eprintln!("Begin/End location not found.");
+        eprintln!("Package was not specified");
         exit(1);
     }
 }
