@@ -94,12 +94,12 @@ fn main() {
 
     if opts.add.is_none() && opts.remove.is_none() {
         eprintln!(
-            r#"\x1b[31m✗\x1b[0m You must either add or remove a package. Use "-h" or "--help" for usage."#
+            "\x1b[31m✗\x1b[0m You must either add or remove a package. Use \"-h\" or \"--help\" for usage."
         );
         exit(1);
     } else if opts.add.is_some() && opts.remove.is_some() {
         eprintln!(
-            r#"\x1b[31m✗\x1b[0m You can only add or remove a package, not both. Use "-h" or "--help" for usage."#
+            "\\x1b[31m✗\\x1b[0m You can only add or remove a package, not both. Use \"-h\" or \"--help\" for usage."
         );
         exit(1);
     }

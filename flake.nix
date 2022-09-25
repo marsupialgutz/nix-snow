@@ -17,7 +17,7 @@
     in {
       defaultPackage = naersk-lib.buildPackage {
         root = ./.;
-        buildInputs = [ pkgs.makeWrapper ];
+        nativeBuildInputs = [pkgs.makeWrapper];
         postInstall = ''
           wrapProgram $out/bin/snow \
             --prefix PATH : ${pkgs.lib.makeBinPath (with pkgs; [jq fzf])} \
@@ -31,7 +31,6 @@
       devShell = with pkgs;
         mkShell {
           buildInputs = [cargo rustc rustfmt pre-commit rustPackages.clippy];
-          nativeBuildInputs = [makeWrapper];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
     });
