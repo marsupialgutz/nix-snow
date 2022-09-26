@@ -31,6 +31,20 @@ pub struct Config {
 pub static CONFIG: Lazy<Config> = Lazy::new(read_config);
 
 #[derive(Clone, Debug, Bpaf)]
+enum Action {
+    Add(
+        /// Add a package
+        #[bpaf(long("add"), short('a'), argument("PACKAGE"))]
+        String,
+    ),
+    Remove(
+        /// Remove a package
+        #[bpaf(long("remove"), short('r'), argument("PACKAGE"))]
+        String,
+    ),
+}
+
+#[derive(Clone, Debug, Bpaf)]
 #[bpaf(options, version)]
 /// Nix-snow - add packages to your nix configuration
 struct Args {
@@ -40,12 +54,8 @@ struct Args {
     /// Dry-run, don't change files
     #[bpaf(long, short)]
     dry_run: bool,
-    /// Add a package
-    #[bpaf(long, short, argument("PACKAGE"))]
-    add: Option<String>,
-    /// Remove a package
-    #[bpaf(long, short, argument("PACKAGE"))]
-    remove: Option<String>,
+    #[bpaf(external)]
+    action: Action,
     /// Don't rebuild if you have "always rebuild" on
     #[bpaf(long, short)]
     no_rebuild: bool,
@@ -95,18 +105,6 @@ pub fn run_rebuild() {
 fn main() {
     let opts = args().run();
 
-    if opts.add.is_none() && opts.remove.is_none() {
-        eprintln!(
-            "\x1b[31m✗\x1b[0m You must either add or remove a package. Use \"-h\" or \"--help\" for usage."
-        );
-        exit(1);
-    } else if opts.add.is_some() && opts.remove.is_some() {
-        eprintln!(
-            "\\x1b[31m✗\\x1b[0m You can only add or remove a package, not both. Use \"-h\" or \"--help\" for usage."
-        );
-        exit(1);
-    }
-
     let rebuild = !opts.no_rebuild;
 
     let output_str = get_name(&opts);
@@ -127,10 +125,13 @@ fn main() {
     .map(|x| x.to_string())
     .collect::<Vec<_>>();
 
-    if opts.add.is_some() && opts.remove.is_none() {
-        add_package(file, output_str, rebuild);
-    } else if opts.remove.is_some() && opts.add.is_none() {
-        remove_package(file, output_str, rebuild);
+    match opts.action {
+        Action::Add(..) => {
+            add_package(file, output_str, rebuild);
+        }
+        Action::Remove(..) => {
+            remove_package(file, output_str, rebuild);
+        }
     }
 }
 
@@ -150,13 +151,8 @@ fn read_config() -> Config {
 }
 
 fn get_pkg(opts: &Args) -> String {
-    if let Some(add) = &opts.add {
-        add.into()
-    } else if let Some(remove) = &opts.remove {
-        remove.into()
-    } else {
-        eprintln!("\x1b[31m✗\x1b[0m Package was not specified");
-        exit(1);
+    match &opts.action {
+        Action::Add(name) | Action::Remove(name) => name.to_owned(),
     }
 }
 
