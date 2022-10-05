@@ -67,6 +67,7 @@ pub fn run_rebuild() {
             let sp = Spinner::new(Spinners::Dots, "Rebuilding...", Color::Blue);
             set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
             Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
+                .arg("-h")
                 .stdout(Stdio::null())
                 .stderr(Stdio::piped())
                 .spawn()
@@ -85,6 +86,7 @@ pub fn run_rebuild() {
                 let sp = Spinner::new(Spinners::Dots, "Rebuilding...", Color::Blue);
                 set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
                 Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
+                    .arg("-h")
                     .stdout(Stdio::null())
                     .stderr(Stdio::piped())
                     .spawn()
