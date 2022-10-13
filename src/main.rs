@@ -1,8 +1,3 @@
-use std::{
-    env::set_current_dir,
-    io::{stdin, stdout},
-};
-
 mod modes;
 use {
     bpaf::Bpaf,
@@ -12,9 +7,9 @@ use {
     serde_derive::Deserialize,
     spinoff::{Color, Spinner, Spinners},
     std::{
-        env::var,
+        env::{set_current_dir, var},
         fs::read_to_string,
-        io::Write,
+        io::{stdin, stdout, Write},
         process::{exit, Command, Stdio},
         str::from_utf8,
     },
