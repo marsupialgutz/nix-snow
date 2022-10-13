@@ -26,7 +26,7 @@ pub struct Config {
 
 pub static CONFIG: Lazy<Config> = Lazy::new(read_config);
 
-#[derive(Clone, Debug, Bpaf)]
+#[derive(Clone, Debug, Bpaf, PartialEq)]
 enum Action {
     Add(
         /// Add a package
@@ -105,12 +105,6 @@ fn main() {
 
     let rebuild = !opts.no_rebuild;
 
-    let output_str = get_name(&opts);
-
-    if opts.dry_run {
-        exit(0)
-    }
-
     let file = read_to_string({
         if let Some(path) = &CONFIG.path {
             path.replace('~', &var("HOME").unwrap())
@@ -122,6 +116,12 @@ fn main() {
     .split('\n')
     .map(|x| x.to_string())
     .collect::<Vec<_>>();
+
+    let output_str = get_name(&opts, &file);
+
+    if opts.dry_run {
+        exit(0)
+    }
 
     match opts.action {
         Action::Add(..) => {
@@ -154,7 +154,19 @@ fn get_pkg(opts: &Args) -> String {
     }
 }
 
-fn get_name(opts: &Args) -> String {
+fn get_name(opts: &Args, file: &Vec<String>) -> String {
+    if let Some(beginning) = file.iter().position(|x| x.trim().contains("# SNOW BEGIN")) {
+        if let Some(end) = file.iter().position(|x| x.trim().contains("# SNOW END")) {
+            if let Action::Remove(p) = &opts.action {
+                for i in file[beginning..end].iter() {
+                    if i.trim() == (p.trim()) {
+                        return i.trim().to_owned();
+                    }
+                }
+            }
+        }
+    }
+
     let sp = Spinner::new(
         Spinners::Dots,
         format!("Searching for {}...", get_pkg(opts)),
