@@ -1,5 +1,6 @@
 use {
     crate::{run_rebuild, CONFIG},
+    colorful::Colorful,
     std::{env::var, fs::write, process::exit},
 };
 
@@ -15,7 +16,7 @@ pub fn add_package(mut file: Vec<String>, package: String, rebuild: bool) {
                 .iter()
                 .any(|x| x.trim() == package.trim())
             {
-                eprintln!("\x1b[31m✗\x1b[0m Package already installed, not adding.");
+                eprintln!("{} Package already installed, not adding.", "✗".red());
                 exit(1);
             }
 
@@ -36,7 +37,7 @@ pub fn add_package(mut file: Vec<String>, package: String, rebuild: bool) {
     )
     .unwrap();
 
-    println!("\x1b[32m✓\x1b[0m Added {package} to your Nix packages.");
+    println!("{} Added {package} to your Nix packages.", "✓".green());
 
     if rebuild {
         run_rebuild();

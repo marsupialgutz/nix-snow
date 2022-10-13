@@ -1,6 +1,7 @@
 mod modes;
 use {
     bpaf::Bpaf,
+    colorful::Colorful,
     json::parse,
     modes::{add::add_package, remove::remove_package},
     once_cell::sync::Lazy,
@@ -93,7 +94,7 @@ pub fn run_rebuild() {
         }
         "never" => (),
         _ => {
-            eprintln!("\x1b[31m✗\x1b[0m Unknown setting");
+            eprintln!("{} Unknown setting", "✗".red());
             exit(1);
         }
     }
@@ -141,7 +142,7 @@ fn read_config() -> Config {
         format!("{}/.config/nix-snow/config.toml", var("HOME").unwrap())
     })
     .unwrap_or_else(|e| {
-        eprintln!("\x1b[31m✗\x1b[0m Cannot find config file: {e}");
+        eprintln!("{} Cannot find config file: {e}", "✗".red());
         exit(1);
     });
     from_str(&content).unwrap()
@@ -166,7 +167,7 @@ fn get_name(opts: &Args) -> String {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap_or_else(|e| {
-            eprintln!("\x1b[31m✗\x1b[0m Failed to run nix search: {e}");
+            eprintln!("{} Failed to run nix search: {e}", "✗".red());
             exit(1);
         });
 
@@ -202,7 +203,7 @@ fn get_name(opts: &Args) -> String {
             .stdout(Stdio::piped())
             .spawn()
             .unwrap_or_else(|e| {
-                eprintln!("\x1b[31m✗\x1b[0m Failed to start fzf: {e}");
+                eprintln!("{} Failed to start fzf: {e}", "✗".red());
                 exit(1);
             });
         let stdin = search.stdin.as_mut().unwrap();
@@ -210,20 +211,20 @@ fn get_name(opts: &Args) -> String {
         stdin
             .write_all(pkgs.join("\n").as_bytes())
             .unwrap_or_else(|e| {
-                eprintln!("\x1b[31m✗\x1b[0m Failed to list packages: {e}");
+                eprintln!("{} Failed to list packages: {e}", "✗".red());
                 exit(1);
             });
 
         let res = search
             .wait_with_output()
             .unwrap_or_else(|e| {
-                eprintln!("\x1b[31m✗\x1b[0m Failed to wait on fzf: {e}");
+                eprintln!("{} Failed to wait on fzf: {e}", "✗".red());
                 exit(1);
             })
             .stdout;
 
         if res.is_empty() {
-            eprintln!("\x1b[31m✗\x1b[0m No package selected");
+            eprintln!("{} No package selected", "✗".red());
             exit(1);
         }
 

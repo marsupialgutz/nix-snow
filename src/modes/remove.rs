@@ -1,5 +1,6 @@
 use {
     crate::{run_rebuild, CONFIG},
+    colorful::Colorful,
     std::{env::var, fs::write, process::exit},
 };
 
@@ -15,7 +16,8 @@ pub fn remove_package(file: Vec<String>, package: String, rebuild: bool) {
 
             if new_file == file {
                 eprintln!(
-                    "\x1b[31m✗\x1b[0m Package {package} is not in your list of Nix packages."
+                    "{} Package {package} is not in your list of Nix packages.",
+                    "✗".red(),
                 );
                 exit(1);
             }
@@ -34,7 +36,7 @@ pub fn remove_package(file: Vec<String>, package: String, rebuild: bool) {
         }
     }
 
-    println!("\x1b[32m✓\x1b[0m Removed {package} from your Nix packages.");
+    println!("{} Removed {package} from your Nix packages.", "✓".green());
 
     if rebuild {
         run_rebuild();
