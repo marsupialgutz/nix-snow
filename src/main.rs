@@ -62,14 +62,16 @@ pub fn run_rebuild() {
         "always" => {
             let sp = Spinner::new(Spinners::Dots, "Rebuilding...", Color::Blue);
             set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-            Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
+            let cmd = Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                 .arg("-h")
                 .stdout(Stdio::null())
                 .stderr(Stdio::piped())
-                .spawn()
-                .unwrap()
-                .wait()
+                .status()
                 .unwrap();
+            if !cmd.success() {
+                sp.fail("Failed to rebuild");
+                exit(1);
+            }
             sp.success("Successfully rebuilt!");
         }
         "ask" => {
@@ -81,14 +83,16 @@ pub fn run_rebuild() {
             if response.trim() == "y" {
                 let sp = Spinner::new(Spinners::Dots, "Rebuilding...", Color::Blue);
                 set_current_dir(format!("{}/nix-config", var("HOME").unwrap())).unwrap();
-                Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
+                let cmd = Command::new(format!("{}/nix-config/bin/build", var("HOME").unwrap()))
                     .arg("-h")
                     .stdout(Stdio::null())
                     .stderr(Stdio::piped())
-                    .spawn()
-                    .unwrap()
-                    .wait()
+                    .status()
                     .unwrap();
+                if !cmd.success() {
+                    sp.fail("Failed to rebuild");
+                    exit(1);
+                }
                 sp.success("Successfully rebuilt!");
             }
         }
