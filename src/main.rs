@@ -198,7 +198,18 @@ fn get_name(opts: &Args, file: &Vec<String>) -> String {
 
     if pkgs.is_empty() {
         sp.fail(&format!("Package not found: {}", get_pkg(opts)));
-        exit(1);
+        print!("Do you want to add it anyway? (Y/n): ");
+        let mut response = String::new();
+        stdout().flush().unwrap();
+        stdin().read_line(&mut response).unwrap();
+        match response.trim().to_lowercase().as_str() {
+            "y" | "" => get_pkg(opts),
+            "n" => exit(0),
+            _ => {
+                eprintln!("{} Unknown response", "✗".red());
+                exit(1);
+            }
+        }
     } else if pkgs.len() == 1 {
         sp.success(&format!("Found {}!", get_pkg(opts)));
         String::from_utf8_lossy(pkgs[0].as_bytes()).to_string()
