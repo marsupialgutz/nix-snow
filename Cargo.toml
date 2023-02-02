@@ -6,12 +6,12 @@ version = "1.0.1"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bpaf = { version = "0.6.0", features = ["derive"]}
+clap = { version = "4.1.4", features = ["derive"] }
 colorful = "0.2.1"
+config = { version = "0.13.3", features = ["ron"] }
 json = "0.12.4"
 once_cell = "1.13.1"
 serde = "1.0.144"
 serde_derive = "1.0.144"
-spinoff = "0.5.4"
+spinoff = "0.7.0"
 temp-file = "0.1.7"
-toml = "0.5.9"
