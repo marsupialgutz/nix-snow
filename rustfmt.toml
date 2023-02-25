@@ -3,3 +3,4 @@ tab_spaces = 2
 reorder_impl_items = true
 indent_style = "Block"
 normalize_comments = true
+imports_granularity = "One"
